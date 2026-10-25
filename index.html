@@ -418,7 +418,7 @@ button.cd:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 table.ref{border-collapse:collapse;width:100%;min-width:620px}
 .ref th,.ref td{border:1px solid var(--line);padding:8px 10px;vertical-align:middle;text-align:left}
 .ref thead th{background:var(--navy);color:#fff;font:700 15px var(--f-display);letter-spacing:.04em;text-align:center}
-.ref thead tr.sub th{background:var(--accent-soft);color:var(--fg)}
+.ref thead tr.imec th{background:var(--accent-soft);color:var(--fg)}
 .ref td.lv{font:700 18px var(--f-display);text-align:center;width:120px;white-space:nowrap}
 .ref ul{margin:0;padding-left:18px;display:grid;gap:3px;font-size:14px}
 .ref td.ehf{font:600 16px var(--f-display);background:var(--panel2)}
@@ -432,6 +432,15 @@ table.ref{border-collapse:collapse;width:100%;min-width:620px}
 .refbtn:hover{background:#dbe8f7}.refbtn:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
 .crit .refbtn{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);justify-self:start}
 .hist-t td:first-child{white-space:nowrap;font-family:var(--f-mono);font-size:13.5px}
+.ritem .rg{display:block}
+.ritem .ibar{display:block;position:relative;height:6px}
+.ritem .ibar i{position:absolute;left:0;top:0;bottom:0;height:auto}
+@media (min-width:1001px){
+  .main{align-items:stretch}
+  .main>.panel:last-child{height:0;min-height:100%;display:flex;flex-direction:column}
+  .main>.panel:last-child .rank{flex:1 1 auto;min-height:0;max-height:none}
+}
+@media (max-width:1000px){.rank{max-height:520px}}
 .chip.mix{background:linear-gradient(90deg,var(--g1) 50%,var(--g2) 50%);color:#fff}
 </style>
 
@@ -615,6 +624,7 @@ table.ref{border-collapse:collapse;width:100%;min-width:620px}
       <p style="margin:0">Cada envio do formulário vira uma linha por critério na aba <b>Registros</b> da planilha. O painel lê a planilha a cada minuto e recalcula o grau e o ranking.</p>
       <div class="links">
         <a class="primary" id="lnkForm" href="#" target="_blank" rel="noopener">Abrir formulário</a>
+        <a class="primary" id="lnkNR" href="#" target="_blank" rel="noopener">Registrar mudança do nível de calor</a>
         <a class="sec" id="lnkSheet" href="#" target="_blank" rel="noopener">Abrir planilha</a>
       </div>
       <p class="msg err" id="formMissing" hidden>O formulário ainda não foi criado. Na planilha, abra Extensões › Apps Script, cole o script do painel e rode a função <b>criarFormularios</b>. Enquanto isso, registre direto na aba Registros.</p>
@@ -623,7 +633,7 @@ table.ref{border-collapse:collapse;width:100%;min-width:620px}
         <li>Cada envio substitui o valor anterior do critério informado. Critério deixado em branco continua como estava; "Não atingido" zera o critério.</li>
         <li>Óbitos e atendimentos: informe só o número do <b>percentual acima da média diária</b> (ex.: 72). O nível é calculado sozinho.</li>
         <li>Só entram no cálculo os registros com Status <b>Confirmado</b>. O grau validado pela equipe vai na coluna <b>Grau validado</b>.</li>
-        <li>Mudança do nível de calor do estado (0 a 4, escala da SES-RJ): use o formulário de nível (link no cabeçalho) ou preencha as colunas <b>NR</b> da planilha.</li>
+        <li><b>Mudança do nível de calor</b> do estado (0 a 4, escala da SES-RJ): clique em "Registrar mudança do nível de calor", escolha o novo nível e cole o comunicado. A primeira linha do comunicado aparece em destaque no cabeçalho. O mesmo link fica no tooltip de cada nível do cabeçalho.</li>
       </ol>
     </section>
     <section class="panel">
@@ -689,7 +699,13 @@ const BASE_RAW=[["21/10/2026", "21/10/2026 10:00", "Rio de Janeiro", "EHF · Fat
 const CN=CRITS.map(c=>norm(c.n));
 let ALL=BASE_RAW.map((r,i)=>({id:"b"+i,ev:r[0],dh:r[1],mun:r[2],c:CN.indexOf(norm(r[3])),lv:0,val:r[5],d:r[6],fonte:"EXEMPLO",ok:true,ord:i}))
   .filter(r=>r.c>=0).map(r=>(r.lv=nivelDe(r.c,BASE_RAW[+r.id.slice(1)][4],r.val),r));
-let EV=null,SEL=null,PUBLIC=false,SRC="embutido",SRCMSG="Conectando à planilha…",LIDO=null,VALS={},RED={},FM={},DRILL=null;
+// links dos formulários criados pelo script (usados quando a planilha não informa)
+const FM_PADRAO={"__endereco__":"https://docs.google.com/forms/d/e/1FAIpQLSdpYVTaUu3rAuAJOQ2woFDn2-5jGb1LnuwV5xFMhnFBC5Rq4Q/viewform",
+ "__form_nr__":"https://docs.google.com/forms/d/e/1FAIpQLScecNlHyNyuBxFe3DYNP03QSFN1OjuplgsfYCnOj5y2D1Ljyg/viewform",
+ "Data do evento":"1727948549","Município":"1756116086","Fonte":"786528174","1. EHF · Fator de Excesso de Calor":"471923981",
+ "2. Óbitos · % acima da média diária":"2072450836","3. Atendimentos a gestantes e/ou vulneráveis · % acima da média diária":"1399855159",
+ "4. Abastecimento de energia ou água":"739025367","5. Nível de resposta ao excesso de calor":"859135960","6. Comoção social":"2080668846","Detalhes / observações":"1987768008"};
+let EV=null,SEL=null,PUBLIC=false,SRC="embutido",SRCMSG="Conectando à planilha…",LIDO=null,VALS={},RED={},FM=Object.assign({},FM_PADRAO),DRILL=null;
 const recs=()=>ALL.filter(r=>r.ev===EV);
 function dkey(e){const m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(e||"");return m?+m[3]*10000+ +m[2]*100+ +m[1]:0}
 function dhKey(s){const m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/.exec(s||"");return m?((+m[3]*100+ +m[2])*100+ +m[1])*10000+(+(m[4]||0))*100+ +(m[5]||0):0}
@@ -758,7 +774,7 @@ const acaoLi=a=>a.startsWith("*")?`<li><b>${esc(a.slice(1))}</b></li>`:`<li>${es
 function tabAcoes(){return `<table class="ref"><thead><tr><th style="width:120px">Cenário</th><th>Ações de resposta</th></tr></thead><tbody>${
   ACOES.map((L,i)=>`<tr><td class="lv lv${i}">Nível ${i}</td><td><ul>${L.map(acaoLi).join("")}</ul></td></tr>`).join("")}</tbody></table>`}
 function tabNiveis(){return `<table class="ref" style="min-width:560px"><thead><tr><th rowspan="2" style="width:34%">EHF &amp; Tmax &gt; 35°C</th><th colspan="3">IMEC-RJ</th></tr>
-  <tr class="sub">${NIV_IMEC.map(c=>`<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${
+  <tr class="imec">${NIV_IMEC.map(c=>`<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${
   NIV_EHF.map((r,i)=>`<tr><td class="ehf">${esc(r)}</td>${NIV_TAB[i].map(n=>`<td class="cel lv${n}">Nível ${n}</td>`).join("")}</tr>`).join("")}</tbody></table>`}
 function tabHist(){return `<table class="ref hist-t"><thead><tr><th>Evento</th><th>Município (exemplo)</th><th>Grau estimado</th></tr></thead><tbody>${
   HIST.map(r=>`<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td><td><span class="chip ${r[2]}">${esc(r[3])}</span></td></tr>`).join("")}</tbody></table>`}
@@ -802,13 +818,15 @@ function mostrarNivel(i){
   let h="";
   if(cur&&cur.nr===i){
     const msg=String(cur.msg||"").split(/\r?\n/).map((l,k)=>k===0&&l.trim()?`<b>${esc(l)}</b>`:esc(l)).join("\n");
-    const hist=L.slice().reverse().slice(0,6),u=FM_NR();
+    const hist=L.slice().reverse().slice(0,6);
     h+=`<div class="meta"><span>Nível atual</span><b>${esc(cur.dt)}</b><span>${esc(cur.fonte||"")}</span></div><div class="msg">${msg}</div>
       ${hist.length>1?`<div class="hist"><span class="lbl">Histórico</span>${hist.map(x=>`<span><b>${esc(x.dt)}</b> · Nível ${x.nr}</span>`).join("")}</div>`:""}
-      ${u?`<a class="nrup pub-hide" href="${esc(u)}" target="_blank" rel="noopener">Registrar mudança de nível ›</a>`:""}`;
+`;
   }
+  const u2=FM_NR();
   h+=`<div class="acts"${cur&&cur.nr===i?"":' style="margin-top:0;padding-top:0;border-top:0"'}><span class="lvh lv${i}">Nível ${i} · ações de resposta</span><ul>${ACOES[i].map(acaoLi).join("")}</ul>
-    <span class="src">${esc(ACOES_FONTE)}</span><button type="button" class="lk" data-ref="acoes">Ver a tabela completa ›</button></div>`;
+    <span class="src">${esc(ACOES_FONTE)}</span><button type="button" class="lk" data-ref="acoes">Ver a tabela completa ›</button></div>
+    ${u2?`<a class="nrup pub-hide" href="${esc(u2)}" target="_blank" rel="noopener">Registrar mudança do nível de calor ›</a>`:""}`;
   t.innerHTML=h;t.hidden=false;
   document.querySelectorAll("#nrsteps button.st").forEach(b=>b.setAttribute("aria-expanded",+b.dataset.n===i));
 }
@@ -975,6 +993,7 @@ function renderIcr(){
 document.getElementById("lnkSheet").href=SHEET_URL;
 function renderFormLinks(){
   const u=/^https?:/.test(FM["__endereco__"]||"")?FM["__endereco__"]:"",a=document.getElementById("lnkForm");
+  const n=document.getElementById("lnkNR"),un=FM_NR();if(un)n.href=un;else{n.removeAttribute("href");n.style.opacity=".45"}
   if(u){a.href=u;a.removeAttribute("aria-disabled");a.style.opacity="";document.getElementById("formMissing").hidden=true}
   else{a.removeAttribute("href");a.setAttribute("aria-disabled","true");a.style.opacity=".45";document.getElementById("formMissing").hidden=false}
 }
@@ -1048,10 +1067,10 @@ async function lerPlanilha(manual){
   if(!csv&&!(window.claude&&MCP)){
     try{const r=await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&headers=1&sheet=Registros`,{cache:"no-store"});
       const t=r.ok?await r.text():"";if(t&&!/^\s*</.test(t))csv=t;else erro="Para este arquivo ler a planilha, ela precisa estar compartilhada como \"Qualquer pessoa com o link: leitor\"."}
-    catch(e){erro="Sem acesso à planilha neste momento."}}
+    catch(e){erro="A planilha não abriu. Ela precisa estar compartilhada como \"Qualquer pessoa com o link: leitor\"."}}
   const p=csv?rowsFromCSV(csv):null;
   if(p){
-    ALL=p.out;VALS=p.vals;RED=p.red;FM=p.fm||{};NRL=p.nr;SRC="planilha";
+    ALL=p.out;VALS=p.vals;RED=p.red;FM=Object.assign({},FM_PADRAO,p.fm||{});NRL=p.nr;SRC="planilha";
     LIDO=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
     const evs=[...new Set(ALL.map(r=>r.ev))];
     if(!JA_LEU||!evs.includes(EV)){EV=ultimoEvento();DRILL=null;const o=compute()[0];SEL=o?o.mun:SEL}
